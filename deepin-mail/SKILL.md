@@ -6,188 +6,164 @@ compatibility: Requires gdbus (usually available with glib2-tools) and deepin-ma
 
 # Deepin Mail D-Bus Skill
 
-This skill enables interaction with deepin-mail (the email client on Deepin OS) via D-Bus. It supports reading, sending, searching, and managing emails.
+This skill enables interaction with deepin-mail (the email client on Deepin OS) via D-Bus.
 
-## Prerequisites
+## Quick Start
 
-- Deepin OS with deepin-mail installed and running
-- `gdbus` command-line tool (typically available via `glib2-tools` or `libglib2.0-tools`)
-- The deepin-mail service must be active on the D-Bus session bus
+**First step for ANY email operation:**
 
-## Available Operations
+1. Get accounts and available folders:
+   ```bash
+   python3 <skill-path>/scripts/dbus_client.py accounts
+   ```
+   This returns the account ID and a list of available folders with their names.
+   **Use the folder names exactly as returned** - they vary by locale (e.g., "收件箱" for Chinese, "INBOX" for English).
 
-### 1. Get Accounts
-List all configured email accounts.
+2. Then proceed with the user's request using the actual folder names from step 1.
 
-**Use when:** User asks what accounts are available, or you need to determine the account to use.
+## Important: Always Discover Folder Names First
 
-### 2. Get Unread Count
-Check the number of unread emails for an account.
+Folder names depend on the user's locale and email provider. Never assume hardcoded values like "INBOX" or "收件箱".
 
-**Use when:** User asks about unread emails, new messages, or email notifications.
+**Correct workflow:**
+```bash
+# Step 1: Get accounts to discover available folders
+python3 <skill-path>/scripts/dbus_client.py accounts
+# Returns: {"id": "user@example.com", "folders": [{"name": "收件箱", "count": 10}, ...]}
 
-### 3. Get Mails
-Retrieve a list of emails from a specific folder (e.g., INBOX, Sent, Drafts).
+# Step 2: Use the actual folder name from the response
+python3 <skill-path>/scripts/dbus_client.py mails --folder "收件箱" --limit 10
+```
 
-**Parameters:**
-- `account`: Account identifier (use default if not specified)
-- `folderName`: Folder name (common: INBOX, Sent, Drafts, Trash, Spam)
-- `limit`: Maximum number of emails to retrieve
+**Wrong approach:**
+```bash
+# Don't assume English folder names - will fail on non-English systems
+python3 <skill-path>/scripts/dbus_client.py mails --folder INBOX --limit 10
+# Error: {"error": "Folder not found: INBOX"}
+```
 
-**Use when:** User wants to read emails, check inbox, see recent messages.
+## CLI Commands
 
-### 4. Get Mail Detail
-Get full details of a specific email including body content.
+Use these commands directly via Bash tool:
 
-**Parameters:**
-- `account`: Account identifier
-- `folderName`: Folder containing the email
-- `mailId`: The email's ID
+```bash
+# Get accounts and discover available folders
+python3 <skill-path>/scripts/dbus_client.py accounts
 
-**Use when:** User wants to read the full content of a specific email.
+# Get latest N emails from a folder
+python3 <skill-path>/scripts/dbus_client.py mails --folder "<folder_name>" --limit N
 
-### 5. Search Mails
-Search emails by keywords across subject, sender, body, etc.
+# Get unread count
+python3 <skill-path>/scripts/dbus_client.py unread
 
-**Parameters:**
-- `account`: Account identifier
-- `keywords`: Search terms
-- `limit`: Maximum results
+# Get full email detail
+python3 <skill-path>/scripts/dbus_client.py detail --folder "<folder_name>" --id <mail_id>
 
-**Use when:** User wants to find emails containing specific words, from a specific person, or about a particular topic.
+# Search emails
+python3 <skill-path>/scripts/dbus_client.py search "<keywords>" --limit N
 
-### 6. Send Mail
-Compose and send a new email.
+# Send email
+python3 <skill-path>/scripts/dbus_client.py send --to recipient@example.com --subject "Subject" --body "Body"
 
-**Parameters:**
-- `account`: Account to send from
-- `to`: Recipient email address
-- `subject`: Email subject line
-- `body`: Email body content
-- `cc`: CC recipients (optional, empty string if none)
-- `attachments`: File paths as comma-separated string (optional)
+# Mark emails
+python3 <skill-path>/scripts/dbus_client.py mark --ids "123,456" --action read
+```
 
-**Use when:** User wants to compose, send, or draft an email.
-
-### 7. Mark Mails
-Perform actions on emails (mark as read/unread, delete, star/unstar).
-
-**Parameters:**
-- `account`: Account identifier
-- `mailIds`: Comma-separated email IDs
-- `action`: One of: `read`, `unread`, `delete`, `star`, `unstar`
-
-**Use when:** User wants to mark emails as read, archive, delete, or flag important messages.
-
-## Workflow
+## Common Workflows
 
 ### Reading Emails
 
-1. If user doesn't specify an account, get the default account
-2. Call `GetMails` with the account, folder (default: INBOX), and limit
-3. Present the email list to the user (subject, sender, date, snippet)
-4. If user wants to read a specific email, call `GetMailDetail` with the mail ID
-
-### Sending Emails
-
-1. Get the default account (or ask user to specify if multiple)
-2. Collect email details: recipient, subject, body
-3. Optionally collect CC recipients and attachments
-4. Call `SendMail` with all parameters
-5. Report the result to the user
-
-### Searching Emails
-
-1. Get the default account
-2. Extract search keywords from user's request
-3. Call `SearchMails` with keywords
-4. Present matching results
+1. Run `accounts` to get the folder list
+2. Identify the inbox folder (look for highest count or typical inbox-like name)
+3. Run `mails --folder "<inbox_folder>" --limit N`
+4. Present as numbered list with subject, sender, date, unread status
+5. If user wants detail: `detail --folder "<folder>" --id <id>`
 
 ### Checking Unread
 
-1. Get the default account
-2. Call `GetUnread`
-3. Report the unread count to the user
+1. Run: `unread`
+2. Report the count
 
-## Account Handling
+### Sending Email
 
-By default, use the **first account** returned by `GetAccounts()` unless the user explicitly specifies a different account. This simplifies the user experience for single-account setups.
+1. Run: `send --to <email> --subject "<subject>" --body "<body>"`
+2. Optional: `--cc <email>` for CC, `--attachments <paths>` for attachments
 
-## Using the D-Bus Script
+### Searching
 
-The skill includes a Python script at `scripts/dbus_client.py` that wraps all D-Bus operations. Use this script for all interactions:
+1. Run: `search "<keywords>" --limit N`
+2. Present results
 
-```python
-# Import the client
-import sys
-sys.path.insert(0, '<skill-path>/scripts')
-from dbus_client import DeepinMailDBusClient
+### Marking Emails
 
-client = DeepinMailDBusClient()
+Actions: `read`, `unread`, `delete`, `star`, `unstar`
 
-# Get accounts
-accounts = client.get_accounts()
+```bash
+python3 <skill-path>/scripts/dbus_client.py mark --ids "123,456" --action read
+```
 
-# Get default account
-account = client.get_default_account()
+## Response Structures
 
-# Get emails from inbox
-mails = client.get_mails(account, "INBOX", 20)
+### Accounts Response
+```json
+[{
+  "id": "email@example.com",
+  "folders": [
+    {"name": "<localized_folder_name>", "count": 1380},
+    {"name": "<another_folder>", "count": 92}
+  ]
+}]
+```
+Use the account `id` as the account identifier. Use folder `name` values exactly as shown.
 
-# Get unread count
-unread = client.get_unread(account)
+### Email List Response
+```json
+{
+  "count": 3,
+  "mails": [
+    {
+      "id": 57601,
+      "subject": "Email subject",
+      "from": "sender@example.com",
+      "date": "2026-02-26 15:32:28",
+      "unread": true,
+      "flagged": false
+    }
+  ]
+}
+```
 
-# Search emails
-results = client.search_mails(account, "project update", 20)
+## Output Format
+
+Present emails clearly:
+
+```
+📧 Latest 3 emails
+
+[1] Subject here
+    From: sender@example.com
+    Date: 2026-02-26 15:32
+    Status: 未读
+
+[2] Another subject
+    From: other@example.com
+    Date: 2026-02-26 14:30
+    Status: 已读
 ```
 
 ## Error Handling
 
-- If deepin-mail is not running, inform the user they need to start the application first
-- If gdbus is not available, suggest installing `glib2-tools` (or distro equivalent)
-- If an account is not found or is invalid, ask the user to verify their account setup
-- Parse all JSON responses carefully and report any parsing errors to the user
-
-## Output Format
-
-When presenting emails to users, include:
-- **Subject**: Clear and prominent
-- **Sender**: From address or name
-- **Date**: When the email was received
-- **Preview**: Brief snippet of the email body
-- **ID**: For reference when requesting full details
-
-Use a clean, readable format. Example:
-
-```
-📧 You have 3 unread emails
-
-[1] Project Update - From: john@example.com - Date: 2025-02-26
-    Preview: The new design has been approved...
-
-[2] Meeting Reminder - From: sarah@company.com - Date: 2025-02-26
-    Preview: Don't forget our sync tomorrow...
-
-[3] Newsletter - From: news@weekly.com - Date: 2025-02-25
-    Preview: This week's top stories...
-```
-
-## Common User Phrases That Should Trigger This Skill
-
-- "Check my email" / "Read my emails"
-- "Send an email to X"
-- "Search for emails about Y"
-- "How many unread emails?"
-- "Show me my inbox"
-- "Compose an email"
-- "Any new messages?"
-- "Find emails from X"
-- "Mark as read"
-- "Deepin mail operations"
+| Error | Solution |
+|-------|----------|
+| `Folder not found: <name>` | Run `accounts` first to get the correct folder name |
+| `D-Bus call failed` | deepin-mail is not running - ask user to start it |
+| `gdbus not found` | Install `glib2-tools` or `libglib2.0-tools` |
+| `No account found` | User needs to configure an account in deepin-mail |
 
 ## Notes
 
-- All D-Bus calls return JSON-formatted strings that need to be parsed
-- The D-Bus service is on the **session bus**, not system bus
-- Mail IDs are integers and uniquely identify emails within a folder
-- Folder names are case-sensitive (typically all caps like INBOX, Sent, Drafts)
+- All D-Bus calls return JSON
+- Service is on **session bus**
+- Mail IDs are integers
+- First account is used as default if not specified
+- Folder names are locale-dependent - always discover from `accounts` command
