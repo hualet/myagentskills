@@ -65,9 +65,11 @@ python3 <skill-path>/scripts/dbus_client.py search "<keywords>" --limit N
 # Send email
 python3 <skill-path>/scripts/dbus_client.py send --to recipient@example.com --subject "Subject" --body "Body"
 
-# Mark emails
+# Mark emails (does NOT need --folder parameter - mail IDs are unique)
 python3 <skill-path>/scripts/dbus_client.py mark --ids "123,456" --action read
 ```
+
+**Note:** The `mark` command only needs mail IDs, not the folder name.
 
 ## Common Workflows
 
@@ -101,6 +103,8 @@ Actions: `read`, `unread`, `delete`, `star`, `unstar`
 ```bash
 python3 <skill-path>/scripts/dbus_client.py mark --ids "123,456" --action read
 ```
+
+**Important:** The `mark` command does NOT require `--folder` - mail IDs are globally unique within an account.
 
 ## Response Structures
 

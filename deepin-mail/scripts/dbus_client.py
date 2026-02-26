@@ -241,12 +241,14 @@ def main():
     send_parser.add_argument("--attachments", default="", help="Attachments (comma-separated paths)")
 
     # Mark
-    mark_parser = subparsers.add_parser("mark", help="Mark emails")
+    mark_parser = subparsers.add_parser("mark", help="Mark emails (read/unread/delete/star/unstar)",
+                                        epilog="Note: --folder parameter is not needed for mark command - mail IDs are unique.",
+                                        formatter_class=argparse.RawDescriptionHelpFormatter)
     mark_parser.add_argument("--account", "-a", help="Account (uses default if not specified)")
-    mark_parser.add_argument("--ids", "-i", required=True, help="Mail IDs (comma-separated)")
+    mark_parser.add_argument("--ids", "-i", required=True, help="Mail IDs (comma-separated, e.g., 123,456)")
     mark_parser.add_argument("--action", required=True,
                             choices=["read", "unread", "delete", "star", "unstar"],
-                            help="Action")
+                            help="Action to perform on the emails")
 
     args = parser.parse_args()
     client = DeepinMailDBusClient()
