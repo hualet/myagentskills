@@ -26,6 +26,15 @@
       "skills": [
         "./deepin-mail"
       ]
+    },
+    {
+      "name": "tencent-exmail",
+      "description": "Interact with Tencent Enterprise Email (腾讯企业邮箱) via qqmail-cli",
+      "source": "./",
+      "strict": false,
+      "skills": [
+        "./tencent-exmail"
+      ]
     }
   ]
 }
